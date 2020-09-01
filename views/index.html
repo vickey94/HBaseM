@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>HbaseM</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- 新 Bootstrap4 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+
+<body>
+
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light ">
+        <div class="container">
+            <a class="navbar-brand" href="#">Hbase Monitoring</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="/">Home </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/table">Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/snapshot">Snapshot</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">About</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div id="app" class="container-fluid">
+        <div class="row mt-2">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        Update time: {% raw %}{{updateTime}}{% endraw %}
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="p-2">
+                                    <h6>OperatingSystem: <b>{% raw %}{{sys.Name}}{% endraw %}
+                                            ({% raw %}{{sys.Arch}}{% endraw %})</b>
+                                    </h6>
+                                    <h6>Version: <b>{% raw %}{{sys.Version}}{% endraw %}</b><br></h6>
+                                    <h6>AvailableProcessors: <b>{% raw %}{{sys.AvailableProcessors}}{% endraw %}</b>
+                                    </h6>
+                                </div>
+                                <div id="ramChart" style="min-height: 240px; "></div>
+                            </div>
+                            <div id="cpuChart" class="col-md-7"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 mt-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>zookeeperQuorum: <b>{% raw %}{{server['tag.zookeeperQuorum']}}{% endraw %}</b></h6>
+                                <h6>serverName: <b>{% raw %}{{server['tag.serverName']}}{% endraw %}</b></h6>
+                                <h6>clusterId: <b>{% raw %}{{server['tag.clusterId']}}{% endraw %}</b></h6>
+                                <h6>Context: <b>{% raw %}{{server['tag.Context']}}{% endraw %}</b></h6>
+                                <h6>regionCount: <b>{% raw %}{{server.regionCount}}{% endraw %}</b></h6>
+                                <h6>regionServerStartTime: <b>{% raw %}{{server.regionServerStartTime}}{% endraw %}</b>
+                                </h6>
+                                <h6>averageRegionSize:
+                                    <b>{% raw %}{{server.averageRegionSize | formatSize}}{% endraw %}</b></h6>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>storeCount: <b>{% raw %}{{server.storeCount | formatNum}}{% endraw %}</b></h6>
+                                <h6>storeFileCount: <b>{% raw %}{{server.storeFileCount  | formatNum}}{% endraw %}</b>
+                                </h6>
+                                <h6>memStoreSize: <b>{% raw %}{{server.memStoreSize | formatSize}}{% endraw %}</b></h6>
+                                <h6>storeFileSize: <b>{% raw %}{{server.storeFileSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>maxStoreFileAge: <b>{% raw %}{{server.maxStoreFileAge}}{% endraw %}</b></h6>
+                                <h6>minStoreFileAge: <b>{% raw %}{{server.minStoreFileAge}}{% endraw %}</b></h6>
+                                <h6>avgStoreFileAge: <b>{% raw %}{{server.avgStoreFileAge}}{% endraw %}</b></h6>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>numReferenceFiles:
+                                    <b>{% raw %}{{server.numReferenceFiles | formatNum}}{% endraw %}</b>
+                                </h6>
+                                <h6>staticIndexSize: <b>{% raw %}{{server.staticIndexSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>staticBloomSize: <b>{% raw %}{{server.staticBloomSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>totalBytesRead: <b>{% raw %}{{server.totalBytesRead | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>localBytesRead: <b>{% raw %}{{server.localBytesRead | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>l1CacheHitRatio: <b>{% raw %}{{server.l1CacheHitRatio*100 | fix2}}{% endraw %}%</b>
+                                </h6>
+                                <h6>l2CacheHitRatio: <b>{% raw %}{{server.l2CacheHitRatio*100 | fix2}}{% endraw %}%</b>
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body row">
+                        <div id="requestChart" class="col-md-8" style="height:320px; "></div>
+                        <div class="col-md-4">
+                            <h6>totalRowActionRequestCount:
+                                <b>{% raw %}{{server.totalRowActionRequestCount | formatNum}}{% endraw %}</b></h6>
+                            <h6>readRequestCount:
+                                <b>{% raw %}{{server.readRequestCount | formatNum}}{% endraw %}</b></h6>
+                            <h6>writeRequestCount:
+                                <b>{% raw %}{{server.writeRequestCount | formatNum}}{% endraw %}</b></h6>
+
+                            <h6>ServerReadQueryPerSecond_count:
+                                <b>{% raw %}{{server.ServerReadQueryPerSecond_count | formatNum}}{% endraw %}</b>
+                            </h6>
+                            <h6>ServerWriteQueryPerSecond_count:
+                                <b>{% raw %}{{server.ServerWriteQueryPerSecond_count | formatNum}}{% endraw %}</b>
+                            </h6>
+                        </div>
+                        <div id="rqpsChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="wqpsChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="rRateChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="wRateChart" class="col-md-6" style="height:260px; "></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-3 p-4" style="background-color: #cfcfcf;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <strong>Copyright &copy; 2020</strong>
+                </div>
+                <div class="col-md-4">
+                   
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <!-- bootstrap.bundle.min.js 用于弹窗、提示、下拉菜单，包含了 popper.min.js -->
+    <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
+    <!-- 最新的 Bootstrap4 核心 JavaScript 文件 -->
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.staticfile.org/vue/2.4.2/vue.min.js"></script>
+    <script src="https://cdn.staticfile.org/axios/0.18.0/axios.min.js"></script>
+
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts-more.min.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/modules/solid-gauge.min.js"></script>
+    <!-- 需要保存导出功能模块文件是在 highcharts.js 之后引入 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/exporting.js"></script>
+    <!-- 客户端导出功能模块为可选选项 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/offline-exporting.js"></script>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    updateTime: '',
+                    waitTime: 3000,
+
+                    id: -1, //待请求数据的ID
+
+                    sys: {},
+                    server: {},
+
+                    ram: {
+                        chart: null,
+                        data: 0,
+                    },
+                    cpu: {
+                        chart: null,
+                        SystemLoadAverage: [],
+                        SystemCpuLoad: [],
+                        ProcessCpuLoad: [],
+                    },
+
+
+                    request: {
+                        chart: null,
+                        totalRowActionRequestCount: [],
+                        readRequestCount: [],
+                        writeRequestCount: [],
+                    },
+
+                    rPSC: {
+                        chart: null,
+                        ServerReadQueryPerSecond_count: [],
+                    },
+                    wPSC: {
+                        chart: null,
+                        ServerWriteQueryPerSecond_count: [],
+                    },
+                    rRate: {
+                        chart: null,
+                        ServerReadQueryPerSecond_rate: [0, 0, 0, 0], //mean 15min 5min 1min
+                    },
+                    wRate: {
+                        chart: null,
+                        ServerWriteQueryPerSecond_rate: [0, 0, 0, 0], //mean 15min 5min 1min
+                    },
+
+                }
+            },
+            mounted() {
+                this.initData();
+
+            },
+            methods: {
+                initData() {
+                    axios.get("/indexInit").then(
+                        (res) => {
+                            let beans = res.data.data.beans;
+                            console.log(beans)
+
+                            if (beans.length > 0) {
+                                this.id = beans[0].id + 1;
+                                this.updateTime = beans[0].ts
+                                this.sys = beans[0].sys;
+                                this.server = beans[0].server;
+
+                                let UsedPhysicalMemorySize = beans[0].sys.TotalPhysicalMemorySize - beans[0].sys.FreePhysicalMemorySize
+                                this.ram.data = Math.floor(UsedPhysicalMemorySize / beans[0].sys.TotalPhysicalMemorySize * 100);
+
+                                for (let i = 0; i < beans.length; i++) {
+                                    let b = beans[beans.length - 1 - i];
+                                    let ts = (new Date(b.ts)).getTime()
+                                    this.cpu.SystemLoadAverage.push([ts, b.sys.SystemLoadAverage])
+                                    this.cpu.SystemCpuLoad.push([ts, b.sys.SystemCpuLoad])
+                                    this.cpu.ProcessCpuLoad.push([ts, b.sys.ProcessCpuLoad])
+
+                                    this.request.totalRowActionRequestCount.push([ts, b.server.totalRowActionRequestCount])
+                                    this.request.readRequestCount.push([ts, b.server.readRequestCount])
+                                    this.request.writeRequestCount.push([ts, b.server.writeRequestCount])
+
+                                    this.rPSC.ServerReadQueryPerSecond_count.push([ts, b.server.ServerReadQueryPerSecond_count])
+                                    this.wPSC.ServerWriteQueryPerSecond_count.push([ts, b.server.ServerWriteQueryPerSecond_count])
+                                }
+
+                                this.rRate.ServerReadQueryPerSecond_rate = [this.server.ServerReadQueryPerSecond_mean_rate,
+                                this.server.ServerReadQueryPerSecond_15min_rate,
+                                this.server.ServerReadQueryPerSecond_5min_rate,
+                                this.server.ServerReadQueryPerSecond_1min_rate];
+
+                                this.wRate.ServerWriteQueryPerSecond_rate = [this.server.ServerWriteQueryPerSecond_mean_rate,
+                                this.server.ServerWriteQueryPerSecond_15min_rate,
+                                this.server.ServerWriteQueryPerSecond_5min_rate,
+                                this.server.ServerWriteQueryPerSecond_1min_rate];
+
+                                //启动
+                                this.initCharts();
+                                this.getData();
+                                setInterval(this.getData, 2000);
+                            }
+
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                initCharts() {
+                    //设置时区
+                    Highcharts.setOptions({ global: { useUTC: false } })
+
+                    this.ram.chart = new Highcharts.chart('ramChart', {
+                        exporting: { enabled: false },
+                        chart: { type: 'solidgauge' },
+                        title: { text: 'RAM' },
+                        subtitle: { text: '0/0' },
+                        pane: {
+                            center: ['50%', '85%'], size: '140%', startAngle: -90, endAngle: 90,
+                            background: {
+                                backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                                innerRadius: '60%', outerRadius: '100%', shape: 'arc'
+                            }
+                        },
+                        tooltip: { enabled: false },
+                        yAxis: {
+                            min: 0, max: 100,
+                            stops: [[0.1, '#55BF3B'], [0.5, '#DDDF0D'], [0.9, '#DF5353']],
+                            lineWidth: 0, minorTickInterval: null, tickPixelInterval: 400, tickWidth: 0,
+                            title: { y: -70 }, labels: { y: 16 }
+                        },
+                        plotOptions: { solidgauge: { dataLabels: { y: 5, borderWidth: 0, useHTML: true } } },
+                        credits: { enabled: false },
+                        series: [{ name: 'RAM', data: [this.ram.data], }]
+                    });
+
+                    this.cpu.chart = new Highcharts.Chart('cpuChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        chart: { type: 'spline', },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'CPU' },
+                        tooltip: { valueDecimals: 2 },
+                        yAxis: { title: { text: '' }, floor: 0 },
+                        xAxis: { type: 'datetime', },
+                        series: [{ data: this.cpu.SystemLoadAverage, color: 'red', marker: { enabled: false }, name: "System Load Average" },
+                        { data: this.cpu.SystemCpuLoad, color: 'blue', marker: { enabled: false }, name: "System Cpu Load" },
+                        { data: this.cpu.ProcessCpuLoad, color: 'green', marker: { enabled: false }, name: "Process Cpu Load" },
+                        ]
+                    })
+
+                    this.request.chart = new Highcharts.Chart('requestChart', {
+                        credits: { enabled: false },
+                        chart: { type: 'areaspline', },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'Request Count' },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        series: [
+                            { name: 'total', marker: { enabled: false }, color: 'blue', data: this.request.totalRowActionRequestCount },
+                            { name: 'read', marker: { enabled: false }, color: 'green', data: this.request.readRequestCount },
+                            { name: 'write', marker: { enabled: false }, color: 'red', data: this.request.writeRequestCount }]
+                    });
+
+                    this.rPSC.chart = new Highcharts.Chart('rqpsChart', {
+                        credits: { enabled: false },
+                        chart: { zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'ServerReadQueryPerSecond_count' },
+                        tooltip: { valueDecimals: 0 },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        legend: { enabled: false },
+                        series: [{ data: this.rPSC.ServerReadQueryPerSecond_count, type: 'spline', color: 'green', marker: { enabled: false }, name: "Read Query" },]
+                    });
+
+                    this.wPSC.chart = new Highcharts.Chart('wqpsChart', {
+                        credits: { enabled: false },
+                        chart: { zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'ServerWriteQueryPerSecond_count' },
+                        tooltip: { valueDecimals: 0 },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        legend: { enabled: false },
+                        series: [{ data: this.wPSC.ServerWriteQueryPerSecond_count, type: 'spline', color: 'red', marker: { enabled: false }, name: "Write Query" },]
+                    })
+
+                    this.rRate.chart = Highcharts.chart('rRateChart', {
+                        credits: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar' },
+                        title: { text: 'ServerReadQueryPerSecond_rate' },
+                        xAxis: { categories: ['mean', '15min', '5min', '1min'], title: { text: null } },
+                        yAxis: { title: { text: '', } },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: true, allowOverlap: true } } },
+                        legend: { enabled: false },
+                        series: [{ name: 'Rate', color: 'green', data: this.rRate.ServerReadQueryPerSecond_rate }]
+                    });
+
+                    this.wRate.chart = Highcharts.chart('wRateChart', {
+                        credits: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar' },
+                        title: { text: 'ServerWriteQueryPerSecond_rate' },
+                        xAxis: { categories: ['mean', '15min', '5min', '1min'], title: { text: null } },
+                        yAxis: { title: { text: '', } },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: true, allowOverlap: true } } },
+                        legend: { enabled: false },
+                        series: [{ name: 'Rate', color: 'red', data: this.wRate.ServerWriteQueryPerSecond_rate }]
+                    });
+
+                },
+
+                getData() {
+
+                    axios.get("/indexJMX", { params: { 'id': this.id } }).then(
+                        (res) => {
+                            let beans = res.data.data.beans;
+                            if (beans.length > 0) {
+                                this.id = beans[0].id + 1;
+                                this.updateTime = beans[0].ts
+                                this.sys = beans[0].sys;
+                                this.server = beans[0].server;
+                                this.setRAM(beans[0]);
+
+                                for (let i = 0; i < beans.length; i++) {
+                                    let b = beans[beans.length - 1 - i];
+                                    let ts = (new Date(b.ts)).getTime()
+                                    //更新图表数据
+
+                                    
+                                
+                                    this.cpu.chart.series[0].addPoint([ts, b.sys.SystemLoadAverage], false, true);
+                                    this.cpu.chart.series[1].addPoint([ts, b.sys.SystemCpuLoad], false, true);
+                                    this.cpu.chart.series[2].addPoint([ts, b.sys.ProcessCpuLoad], false, true);
+                                    this.cpu.chart.redraw();
+
+                                    this.request.chart.series[0].addPoint([ts, b.server.totalRowActionRequestCount], false, true);
+                                    this.request.chart.series[1].addPoint([ts, b.server.readRequestCount], false, true);
+                                    this.request.chart.series[2].addPoint([ts, b.server.writeRequestCount], false, true);
+                                    this.request.chart.redraw();
+
+                                    this.rPSC.chart.series[0].addPoint([ts, b.server.ServerReadQueryPerSecond_count], true, true);
+                                    this.wPSC.chart.series[0].addPoint([ts, b.server.ServerWriteQueryPerSecond_count], true, true);
+
+                                    this.rRate.ServerReadQueryPerSecond_rate = [this.server.ServerReadQueryPerSecond_mean_rate,
+                                    this.server.ServerReadQueryPerSecond_15min_rate, this.server.ServerReadQueryPerSecond_5min_rate, this.server.ServerReadQueryPerSecond_1min_rate];
+                                    this.wRate.ServerWriteQueryPerSecond_rate = [this.server.ServerWriteQueryPerSecond_mean_rate,
+                                    this.server.ServerWriteQueryPerSecond_15min_rate, this.server.ServerWriteQueryPerSecond_5min_rate, this.server.ServerWriteQueryPerSecond_1min_rate];
+                                    this.rRate.chart.series[0].setData(this.rRate.ServerReadQueryPerSecond_rate);
+                                    this.wRate.chart.series[0].setData(this.wRate.ServerWriteQueryPerSecond_rate);
+
+                                }
+                            }
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+            
+                setRAM(bean) {
+                    let UsedPhysicalMemorySize = bean.sys.TotalPhysicalMemorySize - bean.sys.FreePhysicalMemorySize
+                    this.ram.data = Math.floor(UsedPhysicalMemorySize / bean.sys.TotalPhysicalMemorySize * 100);
+                    this.ram.chart.series[0].points[0].update(this.ram.data);
+                                   
+                    let fpms = (UsedPhysicalMemorySize / 1073741824).toFixed(2);
+                    let tpms = (bean.sys.TotalPhysicalMemorySize / 1073741824).toFixed(2);
+                    this.ram.chart.setTitle({ text: "RAM" }, { text: fpms + "/" + tpms + "GB" })
+                }
+
+            },
+            filters: {
+                formatSize(d) {
+                    if (d == undefined) { return '' }
+                    if (d >= 1073741824) { return (d / 1073741824).toFixed(2) + "GB"; }
+                    else if (d >= 1048576) { return (d / 1048576).toFixed(2) + "MB"; }
+                    else if (d >= 1024) { return (d / 1024).toFixed(2) + "KB"; }
+                    else { return d + "B"; }
+                },
+                formatNum(d) {
+                    if (d == undefined) { return '' }
+                    if (d >= 1000) { return (d / 1000).toFixed(2) + "k" }
+                    else { return d }
+                },
+                fix2(d) {
+                    if (d == undefined) { return '' }
+                    return Number(d).toFixed(2);
+                }
+            }
+        })
+    </script>
+
+</body>
+
+</html>

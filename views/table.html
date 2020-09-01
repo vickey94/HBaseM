@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title></title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- 新 Bootstrap4 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        .circle {
+            width: 3px;
+            height: 3px;
+            background-color: red;
+            border-radius: 50%;
+            -moz-border-radius: 50%;
+            -webkit-border-radius: 50%;
+        }
+
+        .square {
+            width: 3px;
+            height: 3px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light ">
+        <div class="container">
+            <a class="navbar-brand" href="#">Hbase Monitoring</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="/table">Table</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/snapshot">Snapshot</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">About</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div id="app" class="container-fluid">
+        <div class="row  mt-2">
+            <div class="col-md-12">
+                <div class="card"> 
+                    <div class="card-header">
+                        Update time: {% raw %}{{updateTime}}{% endraw %}<br>
+                        <h5>Namespace Count: {% raw %}{{ns.length}}{% endraw %} <template v-for="n in ns"><span
+                                    class="badge badge-primary ml-2">{% raw %}{{n}}{% endraw %}</span></template></h5>
+                        <h5>Table Count: {% raw %}{{ds.length}}{% endraw %} <template v-for="d in ds"><span
+                                    class="badge badge-success badge-xl ml-2">{% raw %}{{d.table}}{% endraw %}</span></template>
+                        </h5>
+                        <div  role="group" aria-label="Basic example">
+                            <template v-for="(d,index) in ds">
+                                <button type="button" class="btn btn-info" v-if="sId== index"
+                                    v-on:click="select(index)">{% raw %}{{d.table}}{% endraw %}
+                                    ({% raw %}{{d.Namespace}}{% endraw %})</button>
+                                <button type="button" class="btn btn-light" v-else
+                                    v-on:click="select(index)">{% raw %}{{d.table}}{% endraw %}
+                                    ({% raw %}{{d.Namespace}}{% endraw %})</button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="card-body">
+           
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div id="countChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#003399"></i> regionCount:
+                                        <b>{% raw %}{{ds[sId].regionCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i> storeCount:
+                                        <b>{% raw %}{{ds[sId].storeCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#99CC66"></i> storeFileCount:
+                                        <b>{% raw %}{{ds[sId].storeFileCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#FFCC99"></i> numReferenceFiles:
+                                        <b>{% raw %}{{ds[sId].numReferenceFiles | formatNum}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+        
+                                    <div id="sizePieChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> averageRegion:
+                                        <b>{% raw %}{{ds[sId].averageRegionSize | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> tableSize:
+                                        <b>{% raw %}{{ds[sId].tableSize | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#336699" aria-hidden="true"></i> storeFileSize:
+                                        <b>{% raw %}{{ds[sId].storeFileSize | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-circle" style="color:#cccc00" aria-hidden="true"></i> memStoreSize:
+                                        <b>{% raw %}{{ds[sId].memStoreSize | formatSize}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+        
+                                    <div id="fileAgeChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339933"></i> maxStoreFileAge:
+                                        <b>{% raw %}{{ds[sId].maxStoreFileAge}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#996633"></i> minStoreFileAge:
+                                        <b> {% raw %}{{ds[sId].minStoreFileAge}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#cccc33"></i> avgStoreFileAge:
+                                        <b>{% raw %}{{ds[sId].avgStoreFileAge}}{% endraw %}</b> <br>
+                                    </div>
+                                </div>
+                            </div>
+        
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div id="requestPieChart" class="col-md-6" style="min-height: 240px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> totalRequestCount:
+                                        <b>{% raw %}{{ds[sId].totalRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#009966" aria-hidden="true"></i> readRequestCount:
+                                        <b>{% raw %}{{ds[sId].readRequestCount | formatNum}}{% endraw %}</b> <br>
+                                        <i class="fa fa-circle" style="color:#cc3333" aria-hidden="true"></i> writeRequestCount:
+                                        <b>{% raw %}{{ds[sId].writeRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#434348" aria-hidden="true"></i>
+                                        filteredReadRequestCount:
+                                        <b>{% raw %}{{ds[sId].filteredReadRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#434348" aria-hidden="true"></i> splitRequestCount:
+                                        <b>{% raw %}{{ds[sId].splitRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> splitSuccessCount:
+                                        <b>{% raw %}{{ds[sId].splitSuccessCount | formatNum}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+        
+                                    <div id="bytesChart" class="col-md-6" style="min-height: 240px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i> compactedInput:
+                                        <b>{% raw %}{{ds[sId].compactedInputBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i> compactedOutput:
+                                        <b>{% raw %}{{ds[sId].compactedOutputBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i> flushedMemstore:
+                                        <b>{% raw %}{{ds[sId].flushedMemstoreBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i> flushedOutput:
+                                        <b>{% raw %}{{ds[sId].flushedOutputBytes | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i>
+                                        majorCompactedInput:
+                                        <b>{% raw %}{{ds[sId].majorCompactedInputBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i>
+                                        majorCompactedOutput:
+                                        <b>{% raw %}{{ds[sId].majorCompactedOutputBytes | formatSize}}{% endraw %}</b> <br>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="requestChart" class="col-md-12">
+                        </div>
+                    </div>
+                </div>
+               
+           
+
+               
+            </div>
+            
+        </div>
+    </div>
+    <footer class="mt-3 p-4" style="background-color: #cfcfcf;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <strong>Copyright &copy; 2020</strong>
+                </div>
+                <div class="col-md-4">
+                    <b>Authors:</b> JIlian Zhang, Kailun Yan, Songkai Wang
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <!-- bootstrap.bundle.min.js 用于弹窗、提示、下拉菜单，包含了 popper.min.js -->
+    <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
+    <!-- 最新的 Bootstrap4 核心 JavaScript 文件 -->
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.staticfile.org/vue/2.4.2/vue.min.js"></script>
+    <script src="https://cdn.staticfile.org/axios/0.18.0/axios.min.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts-more.min.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/modules/solid-gauge.min.js"></script>
+    <!-- 需要保存导出功能模块文件是在 highcharts.js 之后引入 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/exporting.js"></script>
+    <!-- 客户端导出功能模块为可选选项 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/offline-exporting.js"></script>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    updateTime: '',
+                    id:-1,
+                    
+                    sId: 0,
+                    ds: [{}],
+                    ns: [],
+                    countChart: null,
+                    sizePieChart: null,
+                    requestPieChart: null,
+                    fileAgeChart: null,
+                    bytesChart: null,
+
+
+                    
+                    request2: {
+                        chart: null,
+                        //临时数据用于填充表格
+                        totalRequestCount: [[0,0]], //要对数据进行初始化，直接赋值会让指针会指向totalRequestCounts的第一个数组，导致第一个数组被后续覆盖掉
+                        readRequestCount: [[0,0]],
+                        writeRequestCount: [[0,0]],
+
+                        //完整的数据
+                        totalRequestCounts: [],
+                        readRequestCounts: [],
+                        writeRequestCounts: [],
+                    }
+                }
+            },
+            mounted() {
+               
+                this.initData();
+                
+               // this.getData();
+
+            },
+            methods: {
+                initData(){
+                    axios.get("/tableInit").then(
+                        (res) => {
+                            if(res.data.code == -1){
+                                return;
+                            }
+                            let d = res.data.data;
+                            this.updateTime = d.ts;
+                            this.id = d.id + 1;
+                            this.ds = d.table.ds;
+                            this.ns = d.table.ns;
+                            this.request2.totalRequestCounts = d.totalRequestCount;
+                            this.request2.readRequestCounts = d.readRequestCount;
+                            this.request2.writeRequestCounts = d.writeRequestCount;
+                           
+                            console.log(d)
+                            this.initCharts();
+                            this.requestChartChange();
+                            this.miniChartUpdate();
+                            this.getData();
+                            setInterval(this.getData, 2000);
+
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                getData(){
+                    axios.get("/tableJMX", { params: { 'id': this.id } }).then(
+                        (res) => {
+                            if(res.data.code == -1){
+                                return;
+                            }
+                            let d = res.data.data;
+                           // console.log(d)
+                            this.updateTime = d.ts;
+                            this.id = d.id + 1;
+                            this.ds = d.table.ds;
+                            this.ns = d.table.ns;
+
+                            let ts = (new Date(d.ts)).getTime()
+
+                            for(let i =0; i< this.ds.length; i++){
+                                this.request2.totalRequestCounts[i].shift();
+                                this.request2.totalRequestCounts[i].push([ts,this.ds[i].totalRequestCount]);
+                                this.request2.readRequestCounts[i].shift();
+                                this.request2.readRequestCounts[i].push([ts,this.ds[i].readRequestCount]);
+                                this.request2.writeRequestCounts[i].shift();
+                                this.request2.writeRequestCounts[i].push([ts,this.ds[i].writeRequestCount]);
+                            }
+                            this.requestChartChange()
+                           // this.request2.chart.series[0].addPoint([ts, this.ds[this.sId].totalRequestCount], false, true);
+                           // this.request2.chart.series[1].addPoint([ts, this.ds[this.sId].readRequestCount], false, true);
+                           // this.request2.chart.series[2].addPoint([ts, this.ds[this.sId].writeRequestCount], false, true);
+                           // this.request2.chart.redraw();
+
+
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                initCharts(){
+                    //设置时区
+                    Highcharts.setOptions({ global: { useUTC: false } })
+                    this.countChart = new Highcharts.chart('countChart', {
+                        credits: { enabled: false },
+                        exporting:{enabled:false },
+                        chart: { type: 'bar', },
+                        title: { text: '' },
+                        xAxis: {labels: { enabled: false}},
+                        yAxis: {title: {text: '',},labels: { enabled: false}},
+                        boost: { useGPUTranslations: true },
+                        legend:{enabled:false},
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: false, allowOverlap: false } } },
+                        series: [{color:'#003399', name: 'regionCount',data: [0]
+                        }, {color:'#339999',name: 'storeCount',data: [0]
+                        }, {color:'#99CC66',name: 'storeFileCount',data: [0]
+                        },{color:'#FFCC99', name: 'numReferenceFiles',data: [0]}]
+                    });
+                  
+                    this.sizePieChart = new Highcharts.chart('sizePieChart',{
+                        credits: { enabled: false },
+                        exporting:{enabled:false },
+                        boost: { useGPUTranslations: true },
+                        chart: {plotBackgroundColor: null, plotBorderWidth: null,plotShadow: false,
+                            type: 'pie',},
+                        title: { text: '' },
+                        tooltip: { pointFormat: '{series.name}: <b>{point.percentage:.2f}%</b>' },
+                        plotOptions: {pie: {allowPointSelect: true, cursor: 'pointer',
+                                dataLabels: { enabled: false },showInLegend: false, }},
+                        series: [{name: 'Size', colorByPoint: true,
+                            data: [{ color: '#336699', name: 'storeFile', y: 0, },
+                            { color: '#cccc00', name: 'memStore', y: 0 }, { color: '#434348', name: 'other', y: 0 }] }]
+                    });
+                    this.fileAgeChart = new Highcharts.chart('fileAgeChart', {
+                        credits: { enabled: false },
+                        exporting:{enabled:false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar',},
+                        title: { text: '' },
+                        xAxis: {labels: { enabled: false}},
+                        yAxis: {title: {text: '',},labels: { enabled: false}},
+                        legend:{enabled:false},
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: false, allowOverlap: false } } },
+                        series: [{color:'#339933', name: 'maxStoreFileAge',data: [0]
+                        }, {color:'#996633',name: 'minStoreFileAge',data: [0]
+                        }, {color:'#cccc33',name: 'avgStoreFileAge',data: [0]}]
+                    });
+
+                    this.requestPieChart = new Highcharts.chart('requestPieChart',{
+                        credits: { enabled: false },
+                        exporting:{enabled:false },
+                        boost: { useGPUTranslations: true },
+                        chart: {plotBackgroundColor: null,plotBorderWidth: null, plotShadow: false,
+                            type: 'pie', },
+                        title: { text: '' },
+                        tooltip: { pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>' },
+                        plotOptions: {pie: {allowPointSelect: true, cursor: 'pointer',
+                                dataLabels: { enabled: false }, showInLegend: false}},
+                        series: [{name: 'Count', colorByPoint: true,
+                            data: [{ color: '#009966', name: 'read', y: 0,  },
+                            { color: '#cc3333', name: 'write', y: 0 }, { color: '#434348', name: 'other', y: 0 }] }]
+                    });
+
+                    this.bytesChart = new Highcharts.chart('bytesChart', {
+                        credits: { enabled: false },
+                        exporting:{enabled:false },
+                        boost: { useGPUTranslations: true },
+                        chart: {type: 'column'},
+                        title: {text: ''},
+                        xAxis: {categories: [ 'compact', 'flush', 'major'],crosshair: true},
+                        yAxis: {title: {text: '',},labels: { enabled: false}},
+                        legend:{enabled:false},
+                        tooltip: {// head + 每个 point + footer 拼接成完整的 table
+                            headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+                            pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +'<td style="padding:0"><b>{point.y:.1f}</b></td></tr>',
+                            footerFormat: '</table>',shared: true,useHTML: true},
+                        plotOptions: {column: {borderWidth: 0}},
+                        series: [{color:'#ff9900',name: 'Input',data: [0, 0, 0]}, 
+                        {color:'#339999',name: 'Output', data: [0, 0, 0]},]
+                    });
+
+                    this.request2.chart = new Highcharts.Chart('requestChart',{
+                        credits: { enabled: false },
+                        chart: {type: 'areaspline'},
+                        boost: { useGPUTranslations: true },
+                        title: {text: 'Request Count'},
+                        yAxis: {title: { text: '' },floor: 0,},
+                        xAxis: { type: 'datetime', },
+                        series: [
+                            { name: 'total', marker: { enabled: false }, color: '#3366cc', data: this.request2.totalRequestCount },
+                            { name: 'read', marker: { enabled: false }, color: '#009966', data: this.request2.readRequestCount},
+                            { name: 'write', marker: { enabled: false }, color: '#cc3333', data: this.request2.writeRequestCount }]
+                    });
+
+                },
+                miniChartUpdate() {
+                    this.countChart.series[0].setData([this.ds[this.sId].regionCount])
+                    this.countChart.series[1].setData([this.ds[this.sId].storeCount])
+                    this.countChart.series[2].setData([this.ds[this.sId].storeFileCount])
+                    this.countChart.series[3].setData([this.ds[this.sId].numReferenceFiles])
+
+                    this.sizePieChart.series[0].setData([this.ds[this.sId].storeFileSize, this.ds[this.sId].memStoreSize, 
+                    this.ds[this.sId].totalRequestCount - this.ds[this.sId].storeFileSize - this.ds[this.sId].memStoreSize])
+
+                    this.fileAgeChart.series[0].setData([this.ds[this.sId].maxStoreFileAge])
+                    this.fileAgeChart.series[1].setData([this.ds[this.sId].minStoreFileAge])
+                    this.fileAgeChart.series[2].setData([this.ds[this.sId].avgStoreFileAge])
+
+                    this.requestPieChart.series[0].setData([this.ds[this.sId].readRequestCount, this.ds[this.sId].writeRequestCount,
+                    this.ds[this.sId].totalRequestCount - this.ds[this.sId].readRequestCount - this.ds[this.sId].writeRequestCount])
+
+                    this.bytesChart.series[0].setData([this.ds[this.sId].compactedInputBytes,this.ds[this.sId].flushedMemstoreBytes,this.ds[this.sId].majorCompactedInputBytes])
+                    this.bytesChart.series[1].setData([this.ds[this.sId].compactedOutputBytes,this.ds[this.sId].flushedOutputBytes,this.ds[this.sId].majorCompactedOutputBytes])
+                },
+                requestChartChange(){
+
+                    this.request2.totalRequestCount = this.request2.totalRequestCounts[this.sId];
+                    this.request2.readRequestCount = this.request2.readRequestCounts[this.sId];
+                    this.request2.writeRequestCount = this.request2.writeRequestCounts[this.sId];
+
+                    this.request2.chart.series[0].setData(this.request2.totalRequestCount);
+                    this.request2.chart.series[1].setData(this.request2.readRequestCount);
+                    this.request2.chart.series[2].setData(this.request2.writeRequestCount);
+                  
+                },
+
+
+                select(index) {
+                    this.sId = index;
+                  
+                    //填充图表数据
+                    this.miniChartUpdate();
+                    this.requestChartChange();
+                },
+            }, filters: {
+                formatSize(data) {
+
+                    if (data >= 1073741824) { return (data / 1073741824).toFixed(2) + "GB"; }
+                    else if (data >= 1048576) { return (data / 1048576).toFixed(2) + "MB"; }
+                    else if (data >= 1024) { return (data / 1024).toFixed(2) + "KB"; }
+                    else { return data + "B"; }
+                },
+                formatNum(d) {
+                    //if (d >= 10000) { return (d / 10000).toFixed(2) + "w" }
+                    if (d >= 1000) { return (d / 1000).toFixed(2) + "k" }
+                    else { return d }
+                },
+            }
+        })
+    </script>
+
+</body>
+
+</html>

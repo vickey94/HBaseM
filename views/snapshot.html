@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>HbaseM</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- 新 Bootstrap4 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+
+
+</head>
+
+<body>
+
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light ">
+        <div class="container">
+            <a class="navbar-brand" href="#">Hbase Monitoring</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/table">Table</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="/snapshot">Snapshot</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about">About</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div id="app" class="container-fluid">
+        <div class="row mt-2">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        View Snapshots
+                    </div>
+                    <div class="card-body">
+
+                        Select table: <select @change="selectT($event)">
+                            {%for t in sTables%}
+                            <option value="{{t.value}}">{{t.table}}</option>
+                            {% endfor %}
+                        </select>
+                        From: <input type="datetime-local" v-model="params.start" value="params.start" />
+                        to: <input type="datetime-local" v-model="params.stop" value="params.stop" />
+                        <button type="button" class="btn btn-primary btn-sm" v-on:click="view">View</button>
+                        <button type="button" class="btn btn-danger btn-sm" v-on:click="stop">Stop</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-2" v-show="showIndex == 0">
+            <div class="col-md-12">
+                <div style="text-align: center; padding:15rem 0 20rem 0;">
+                    You can use the snapshot service to view historical data. <br>
+                    Please set start time and end time first, and then click view button.
+                </div>
+            </div>
+        </div>
+        <div class="row mt-2" v-show="showIndex == 1">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-12">Update time: {% raw %}{{updateTime}}{% endraw %}<br></div>
+                            <div class="col-md-6">
+                                <h6>zookeeperQuorum: <b>{% raw %}{{server['tag.zookeeperQuorum']}}{% endraw %}</b></h6>
+                                <h6>serverName: <b>{% raw %}{{server['tag.serverName']}}{% endraw %}</b></h6>
+                                <h6>clusterId: <b>{% raw %}{{server['tag.clusterId']}}{% endraw %}</b></h6>
+                                <h6>Context: <b>{% raw %}{{server['tag.Context']}}{% endraw %}</b></h6>
+                                <h6>regionCount: <b>{% raw %}{{server.regionCount}}{% endraw %}</b></h6>
+                                <h6>regionServerStartTime: <b>{% raw %}{{server.regionServerStartTime}}{% endraw %}</b>
+                                </h6>
+                                <h6>averageRegionSize:
+                                    <b>{% raw %}{{server.averageRegionSize | formatSize}}{% endraw %}</b></h6>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>storeCount: <b>{% raw %}{{server.storeCount | formatNum}}{% endraw %}</b></h6>
+                                <h6>storeFileCount: <b>{% raw %}{{server.storeFileCount  | formatNum}}{% endraw %}</b>
+                                </h6>
+                                <h6>memStoreSize: <b>{% raw %}{{server.memStoreSize | formatSize}}{% endraw %}</b></h6>
+                                <h6>storeFileSize: <b>{% raw %}{{server.storeFileSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>maxStoreFileAge: <b>{% raw %}{{server.maxStoreFileAge}}{% endraw %}</b></h6>
+                                <h6>minStoreFileAge: <b>{% raw %}{{server.minStoreFileAge}}{% endraw %}</b></h6>
+                                <h6>avgStoreFileAge: <b>{% raw %}{{server.avgStoreFileAge}}{% endraw %}</b></h6>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>numReferenceFiles:
+                                    <b>{% raw %}{{server.numReferenceFiles | formatNum}}{% endraw %}</b>
+                                </h6>
+                                <h6>staticIndexSize: <b>{% raw %}{{server.staticIndexSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>staticBloomSize: <b>{% raw %}{{server.staticBloomSize | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>totalBytesRead: <b>{% raw %}{{server.totalBytesRead | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>localBytesRead: <b>{% raw %}{{server.localBytesRead | formatSize}}{% endraw %}</b>
+                                </h6>
+                                <h6>l1CacheHitRatio: <b>{% raw %}{{server.l1CacheHitRatio*100 | fix2}}{% endraw %}%</b>
+                                </h6>
+                                <h6>l2CacheHitRatio: <b>{% raw %}{{server.l2CacheHitRatio*100 | fix2}}{% endraw %}%</b>
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body row">
+                        <div id="requestChart" class="col-md-8" style="height:320px; "></div>
+                        <div class="col-md-4">
+                            <h6>totalRowActionRequestCount:
+                                <b>{% raw %}{{server.totalRowActionRequestCount | formatNum}}{% endraw %}</b></h6>
+                            <h6>readRequestCount:
+                                <b>{% raw %}{{server.readRequestCount | formatNum}}{% endraw %}</b></h6>
+                            <h6>writeRequestCount:
+                                <b>{% raw %}{{server.writeRequestCount | formatNum}}{% endraw %}</b></h6>
+
+                            <h6>ServerReadQueryPerSecond_count:
+                                <b>{% raw %}{{server.ServerReadQueryPerSecond_count | formatNum}}{% endraw %}</b>
+                            </h6>
+                            <h6>ServerWriteQueryPerSecond_count:
+                                <b>{% raw %}{{server.ServerWriteQueryPerSecond_count | formatNum}}{% endraw %}</b>
+                            </h6>
+                        </div>
+                        <div id="rqpsChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="wqpsChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="rRateChart" class="col-md-6" style="height:260px; "></div>
+                        <div id="wRateChart" class="col-md-6" style="height:260px; "></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!---table charts-->
+        <div class="row  mt-2" v-show="showIndex == 2">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        Update time: {% raw %}{{updateTime}}{% endraw %}<br>
+                        <h5>{% raw %}{{ds[sId].table}}{% endraw %}({% raw %}{{ds[sId].Namespace}}{% endraw %})</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div id="countChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#003399"></i>
+                                        regionCount:
+                                        <b>{% raw %}{{ds[sId].regionCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i>
+                                        storeCount:
+                                        <b>{% raw %}{{ds[sId].storeCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#99CC66"></i>
+                                        storeFileCount:
+                                        <b>{% raw %}{{ds[sId].storeFileCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#FFCC99"></i>
+                                        numReferenceFiles:
+                                        <b>{% raw %}{{ds[sId].numReferenceFiles | formatNum}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+
+                                    <div id="sizePieChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> averageRegion:
+                                        <b>{% raw %}{{ds[sId].averageRegionSize | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> tableSize:
+                                        <b>{% raw %}{{ds[sId].tableSize | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#336699" aria-hidden="true"></i>
+                                        storeFileSize:
+                                        <b>{% raw %}{{ds[sId].storeFileSize | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-circle" style="color:#cccc00" aria-hidden="true"></i>
+                                        memStoreSize:
+                                        <b>{% raw %}{{ds[sId].memStoreSize | formatSize}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+
+                                    <div id="fileAgeChart" class="col-md-6" style="min-height: 150px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339933"></i>
+                                        maxStoreFileAge:
+                                        <b>{% raw %}{{ds[sId].maxStoreFileAge}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#996633"></i>
+                                        minStoreFileAge:
+                                        <b> {% raw %}{{ds[sId].minStoreFileAge}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#cccc33"></i>
+                                        avgStoreFileAge:
+                                        <b>{% raw %}{{ds[sId].avgStoreFileAge}}{% endraw %}</b> <br>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div id="requestPieChart" class="col-md-6" style="min-height: 240px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> totalRequestCount:
+                                        <b>{% raw %}{{ds[sId].totalRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#009966" aria-hidden="true"></i>
+                                        readRequestCount:
+                                        <b>{% raw %}{{ds[sId].readRequestCount | formatNum}}{% endraw %}</b> <br>
+                                        <i class="fa fa-circle" style="color:#cc3333" aria-hidden="true"></i>
+                                        writeRequestCount:
+                                        <b>{% raw %}{{ds[sId].writeRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#434348" aria-hidden="true"></i>
+                                        filteredReadRequestCount:
+                                        <b>{% raw %}{{ds[sId].filteredReadRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle" style="color:#434348" aria-hidden="true"></i>
+                                        splitRequestCount:
+                                        <b>{% raw %}{{ds[sId].splitRequestCount | formatNum}}{% endraw %}</b><br>
+                                        <i class="fa fa-circle-o" aria-hidden="true"></i> splitSuccessCount:
+                                        <b>{% raw %}{{ds[sId].splitSuccessCount | formatNum}}{% endraw %}</b><br>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <hr>
+                                    </div>
+
+                                    <div id="bytesChart" class="col-md-6" style="min-height: 240px;"></div>
+                                    <div class="col-md-6">
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i>
+                                        compactedInput:
+                                        <b>{% raw %}{{ds[sId].compactedInputBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i>
+                                        compactedOutput:
+                                        <b>{% raw %}{{ds[sId].compactedOutputBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i>
+                                        flushedMemstore:
+                                        <b>{% raw %}{{ds[sId].flushedMemstoreBytes | formatSize}}{% endraw %}</b> <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i>
+                                        flushedOutput:
+                                        <b>{% raw %}{{ds[sId].flushedOutputBytes | formatSize}}{% endraw %}</b><br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#ff9900"></i>
+                                        majorCompactedInput:
+                                        <b>{% raw %}{{ds[sId].majorCompactedInputBytes | formatSize}}{% endraw %}</b>
+                                        <br>
+                                        <i class="fa fa-square" aria-hidden="true" style="color:#339999"></i>
+                                        majorCompactedOutput:
+                                        <b>{% raw %}{{ds[sId].majorCompactedOutputBytes | formatSize}}{% endraw %}</b>
+                                        <br>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="requestChart2" class="col-md-12">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <footer class="mt-3 p-4" style="background-color: #cfcfcf;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <strong>Copyright &copy; 2020</strong>
+                </div>
+                <div class="col-md-4">
+
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <!-- bootstrap.bundle.min.js 用于弹窗、提示、下拉菜单，包含了 popper.min.js -->
+    <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
+    <!-- 最新的 Bootstrap4 核心 JavaScript 文件 -->
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.staticfile.org/vue/2.4.2/vue.min.js"></script>
+    <script src="https://cdn.staticfile.org/axios/0.18.0/axios.min.js"></script>
+
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/highcharts-more.min.js"></script>
+    <script src="https://cdn.staticfile.org/highcharts/8.1.2/modules/solid-gauge.min.js"></script>
+    <!-- 需要保存导出功能模块文件是在 highcharts.js 之后引入 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/exporting.js"></script>
+    <!-- 客户端导出功能模块为可选选项 -->
+    <script src="http://cdn.hcharts.cn/highcharts/modules/offline-exporting.js"></script>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    params: {
+                        tableId: -1,
+                        start: this.formatTimeT(new Date()),
+                        stop: this.formatTimeT(new Date()),
+                    },
+                    timer: null,
+                    step:500, //每隔多少毫秒请求一次
+
+                    showIndex: 0,
+
+                    id: -1, //待请求数据的ID
+                    updateTime: '',
+
+                    server: {},
+
+                    request: {
+                        chart: null,
+                        totalRowActionRequestCount: [],
+                        readRequestCount: [],
+                        writeRequestCount: [],
+                    },
+
+                    rPSC: {
+                        chart: null,
+                        ServerReadQueryPerSecond_count: [],
+                    },
+                    wPSC: {
+                        chart: null,
+                        ServerWriteQueryPerSecond_count: [],
+                    },
+                    rRate: {
+                        chart: null,
+                        ServerReadQueryPerSecond_rate: [0, 0, 0, 0], //mean 15min 5min 1min
+                    },
+                    wRate: {
+                        chart: null,
+                        ServerWriteQueryPerSecond_rate: [0, 0, 0, 0], //mean 15min 5min 1min
+                    },
+
+
+                    sId: 0,
+                    ds: [{}],
+                    ns: [],
+                    countChart: null,
+                    sizePieChart: null,
+                    requestPieChart: null,
+                    fileAgeChart: null,
+                    bytesChart: null,
+
+                    request2: {
+                        chart: null,
+
+                        totalRequestCount: [[0, 0]],
+                        readRequestCount: [[0, 0]],
+                        writeRequestCount: [[0, 0]],
+
+                    }
+
+
+                }
+            },
+            mounted() {
+                //  this.params.start = new Date().getTime();
+                // this.initData();
+                this.init();
+
+            },
+            methods: {
+                init() {
+                    //加载第一条数据，对本地数据进行初始化
+                    axios.get("/getIdByTs", { params: { start: "1970-01-01" } }).then(
+                        (res) => {
+                            if (res.data.code == -1) {
+                                return;
+                            }
+                            let bean = res.data.data;
+                            this.initServerData(bean);
+                            this.initTableData(bean);
+
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                selectT(e) {
+                    this.params.tableId = e.target.value;
+                },
+                view() {
+                    clearInterval(this.timer);
+
+
+                    axios.get("/getIdByTs", { params: { start: this.params.start } }).then(
+                        (res) => {
+                            if (res.data.code == -1) {
+                                return;
+                            }
+                            let bean = res.data.data;
+                           // console.log(bean)
+                            if (this.params.tableId == -1) {
+                                this.initServerData(bean);
+                                this.initServerCharts();
+                                this.showIndex = 1;
+
+                                this.timer = setInterval(this.updateServerCharts, this.step);
+
+                            } else {
+                                this.sId = this.params.tableId;
+                                this.initTableData(bean);
+                                this.initTableCharts();
+                                this.showIndex = 2;
+                                this.timer = setInterval(this.updateTableCharts, this.step);
+                            }
+
+                        })
+                        .catch(function (error) { console.log(error); });
+
+                },
+                updateServerCharts() {
+                    axios.get("/indexJMX", { params: { 'id': this.id } }).then(
+                        (res) => {
+                           // console.log(res.data.data)
+                            let beans = res.data.data.beans;
+                            if (beans.length > 0) {
+
+                                if (new Date(this.params.stop).getTime() <= new Date(beans[0].ts).getTime()) {
+                                    clearInterval(this.timer);
+                                    return;
+                                }
+
+                                this.id = beans[0].id + 1;
+                                this.updateTime = beans[0].ts
+                                this.server = beans[0].server;
+
+
+                                for (let i = 0; i < beans.length; i++) {
+                                    let b = beans[beans.length - 1 - i];
+                                    let ts = (new Date(b.ts)).getTime()
+                                    //更新图表数据
+
+                                    this.request.chart.series[0].addPoint([ts, b.server.totalRowActionRequestCount], false, false);
+                                    this.request.chart.series[1].addPoint([ts, b.server.readRequestCount], false, false);
+                                    this.request.chart.series[2].addPoint([ts, b.server.writeRequestCount], false, false);
+                                    this.request.chart.redraw();
+
+                                    this.rPSC.chart.series[0].addPoint([ts, b.server.ServerReadQueryPerSecond_count], true, false);
+                                    this.wPSC.chart.series[0].addPoint([ts, b.server.ServerWriteQueryPerSecond_count], true, false);
+
+                                    this.rRate.ServerReadQueryPerSecond_rate = [this.server.ServerReadQueryPerSecond_mean_rate,
+                                    this.server.ServerReadQueryPerSecond_15min_rate, this.server.ServerReadQueryPerSecond_5min_rate, this.server.ServerReadQueryPerSecond_1min_rate];
+                                    this.wRate.ServerWriteQueryPerSecond_rate = [this.server.ServerWriteQueryPerSecond_mean_rate,
+                                    this.server.ServerWriteQueryPerSecond_15min_rate, this.server.ServerWriteQueryPerSecond_5min_rate, this.server.ServerWriteQueryPerSecond_1min_rate];
+                                    this.rRate.chart.series[0].setData(this.rRate.ServerReadQueryPerSecond_rate);
+                                    this.wRate.chart.series[0].setData(this.wRate.ServerWriteQueryPerSecond_rate);
+
+                                }
+                         
+
+                            }
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                initServerData(bean) {
+                    let ts = (new Date(bean.ts)).getTime()
+
+                    this.id = bean.id + 1;
+                    this.updateTime = bean.ts;
+                    this.server = bean.server;
+                    this.request = {
+                        chart: null,
+                        totalRowActionRequestCount: [[ts, bean.server.totalRowActionRequestCount]],
+                        readRequestCount: [[ts, bean.server.readRequestCount]],
+                        writeRequestCount: [[ts, bean.server.writeRequestCount]],
+                    };
+                    this.rPSC = {
+                        chart: null,
+                        ServerReadQueryPerSecond_count: [[ts, bean.server.ServerReadQueryPerSecond_count]],
+                    };
+                    this.wPSC = {
+                        chart: null,
+                        ServerWriteQueryPerSecond_count: [[ts, bean.server.ServerWriteQueryPerSecond_count]],
+                    };
+                    this.rRate = {
+                        chart: null,
+                        ServerReadQueryPerSecond_rate: [bean.server.ServerReadQueryPerSecond_mean_rate, bean.server.ServerReadQueryPerSecond_15min_rate,
+                        bean.server.ServerReadQueryPerSecond_5min_rate, bean.server.ServerReadQueryPerSecond_1min_rate],
+                    };
+                    this.wRate = {
+                        chart: null,
+                        ServerWriteQueryPerSecond_rate: [bean.server.ServerWriteQueryPerSecond_mean_rate,
+                        bean.server.ServerWriteQueryPerSecond_15min_rate,
+                        bean.server.ServerWriteQueryPerSecond_5min_rate,
+                        bean.server.ServerWriteQueryPerSecond_1min_rate],
+                    };
+                },
+                initServerCharts() {
+
+                    Highcharts.setOptions({ global: { useUTC: false }})
+
+                    this.request.chart = new Highcharts.Chart('requestChart', {
+                        credits: { enabled: false },
+                        chart: { type: 'areaspline', zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'Request Count' },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        series: [
+                            { name: 'total', marker: { enabled: false }, color: 'blue', data: this.request.totalRowActionRequestCount },
+                            { name: 'read', marker: { enabled: false }, color: 'green', data: this.request.readRequestCount },
+                            { name: 'write', marker: { enabled: false }, color: 'red', data: this.request.writeRequestCount }]
+                    });
+
+                    this.rPSC.chart = new Highcharts.Chart('rqpsChart', {
+                        credits: { enabled: false },
+                        chart: { zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'ServerReadQueryPerSecond_count' },
+                        tooltip: { valueDecimals: 0 },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        legend: { enabled: false },
+                        series: [{ data: this.rPSC.ServerReadQueryPerSecond_count, type: 'spline', color: 'green', marker: { enabled: false }, name: "Read Query" },]
+                    });
+
+                    this.wPSC.chart = new Highcharts.Chart('wqpsChart', {
+                        credits: { enabled: false },
+                        chart: { zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'ServerWriteQueryPerSecond_count' },
+                        tooltip: { valueDecimals: 0 },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        legend: { enabled: false },
+                        series: [{ data: this.wPSC.ServerWriteQueryPerSecond_count, type: 'spline', color: 'red', marker: { enabled: false }, name: "Write Query" },]
+                    })
+
+                    this.rRate.chart = Highcharts.chart('rRateChart', {
+                        credits: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar' },
+                        title: { text: 'ServerReadQueryPerSecond_rate' },
+                        xAxis: { categories: ['mean', '15min', '5min', '1min'], title: { text: null } },
+                        yAxis: { title: { text: '', } },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: true, allowOverlap: true } } },
+                        legend: { enabled: false },
+                        series: [{ name: 'Rate', color: 'green', data: this.rRate.ServerReadQueryPerSecond_rate }]
+                    });
+
+                    this.wRate.chart = Highcharts.chart('wRateChart', {
+                        credits: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar' },
+                        title: { text: 'ServerWriteQueryPerSecond_rate' },
+                        xAxis: { categories: ['mean', '15min', '5min', '1min'], title: { text: null } },
+                        yAxis: { title: { text: '', } },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: true, allowOverlap: true } } },
+                        legend: { enabled: false },
+                        series: [{ name: 'Rate', color: 'red', data: this.wRate.ServerWriteQueryPerSecond_rate }]
+                    });
+
+                },
+                initTableData(bean) {
+                    let ts = (new Date(bean.ts)).getTime()
+                    this.id = bean.id + 1;
+                    this.ds = bean.table.ds;
+                    this.ns = bean.table.ns;
+                    this.countChart = null;
+                    this.sizePieChart = null;
+                    this.requestPieChart = null;
+                    this.fileAgeChart = null;
+                    this.bytesChart = null;
+
+                    this.request2 = {
+                        chart: null,
+                        totalRequestCount: [[ts, this.ds[this.sId].totalRequestCount]],
+                        readRequestCount: [[ts, this.ds[this.sId].readRequestCount]],
+                        writeRequestCount: [[ts, this.ds[this.sId].writeRequestCount]],
+                    }
+
+                },
+                initTableCharts() {
+                    //设置时区
+                    Highcharts.setOptions({ global: { useUTC: false } })
+                    this.countChart = new Highcharts.chart('countChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        chart: { type: 'bar', },
+                        title: { text: '' },
+                        xAxis: { labels: { enabled: false } },
+                        yAxis: { title: { text: '', }, labels: { enabled: false } },
+                        boost: { useGPUTranslations: true },
+                        legend: { enabled: false },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: false, allowOverlap: false } } },
+                        series: [{
+                            color: '#003399', name: 'regionCount', data: [0]
+                        }, {
+                            color: '#339999', name: 'storeCount', data: [0]
+                        }, {
+                            color: '#99CC66', name: 'storeFileCount', data: [0]
+                        }, { color: '#FFCC99', name: 'numReferenceFiles', data: [0] }]
+                    });
+
+                    this.sizePieChart = new Highcharts.chart('sizePieChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: {
+                            plotBackgroundColor: null, plotBorderWidth: null, plotShadow: false,
+                            type: 'pie',
+                        },
+                        title: { text: '' },
+                        tooltip: { pointFormat: '{series.name}: <b>{point.percentage:.2f}%</b>' },
+                        plotOptions: {
+                            pie: {
+                                allowPointSelect: true, cursor: 'pointer',
+                                dataLabels: { enabled: false }, showInLegend: false,
+                            }
+                        },
+                        series: [{
+                            name: 'Size', colorByPoint: true,
+                            data: [{ color: '#336699', name: 'storeFile', y: 0, },
+                            { color: '#cccc00', name: 'memStore', y: 0 }, { color: '#434348', name: 'other', y: 0 }]
+                        }]
+                    });
+                    this.fileAgeChart = new Highcharts.chart('fileAgeChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'bar', },
+                        title: { text: '' },
+                        xAxis: { labels: { enabled: false } },
+                        yAxis: { title: { text: '', }, labels: { enabled: false } },
+                        legend: { enabled: false },
+                        tooltip: { valueSuffix: '' },
+                        plotOptions: { bar: { dataLabels: { enabled: false, allowOverlap: false } } },
+                        series: [{
+                            color: '#339933', name: 'maxStoreFileAge', data: [0]
+                        }, {
+                            color: '#996633', name: 'minStoreFileAge', data: [0]
+                        }, { color: '#cccc33', name: 'avgStoreFileAge', data: [0] }]
+                    });
+
+                    this.requestPieChart = new Highcharts.chart('requestPieChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: {
+                            plotBackgroundColor: null, plotBorderWidth: null, plotShadow: false,
+                            type: 'pie',
+                        },
+                        title: { text: '' },
+                        tooltip: { pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>' },
+                        plotOptions: {
+                            pie: {
+                                allowPointSelect: true, cursor: 'pointer',
+                                dataLabels: { enabled: false }, showInLegend: false
+                            }
+                        },
+                        series: [{
+                            name: 'Count', colorByPoint: true,
+                            data: [{ color: '#009966', name: 'read', y: 0, },
+                            { color: '#cc3333', name: 'write', y: 0 }, { color: '#434348', name: 'other', y: 0 }]
+                        }]
+                    });
+
+                    this.bytesChart = new Highcharts.chart('bytesChart', {
+                        credits: { enabled: false },
+                        exporting: { enabled: false },
+                        boost: { useGPUTranslations: true },
+                        chart: { type: 'column' },
+                        title: { text: '' },
+                        xAxis: { categories: ['compact', 'flush', 'major'], crosshair: true },
+                        yAxis: { title: { text: '', }, labels: { enabled: false } },
+                        legend: { enabled: false },
+                        tooltip: {// head + 每个 point + footer 拼接成完整的 table
+                            headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+                            pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' + '<td style="padding:0"><b>{point.y:.1f}</b></td></tr>',
+                            footerFormat: '</table>', shared: true, useHTML: true
+                        },
+                        plotOptions: { column: { borderWidth: 0 } },
+                        series: [{ color: '#ff9900', name: 'Input', data: [0, 0, 0] },
+                        { color: '#339999', name: 'Output', data: [0, 0, 0] },]
+                    });
+
+                    this.request2.chart = new Highcharts.Chart('requestChart2', {
+                        credits: { enabled: false },
+                        chart: { type: 'areaspline', zoomType: 'x' },
+                        boost: { useGPUTranslations: true },
+                        title: { text: 'Request Count' },
+                        yAxis: { title: { text: '' }, floor: 0, },
+                        xAxis: { type: 'datetime', },
+                        series: [
+                            { name: 'total', marker: { enabled: false }, color: '#3366cc', data: this.request2.totalRequestCount },
+                            { name: 'read', marker: { enabled: false }, color: '#009966', data: this.request2.readRequestCount },
+                            { name: 'write', marker: { enabled: false }, color: '#cc3333', data: this.request2.writeRequestCount }]
+                    });
+                },
+                updateTableCharts() {
+                    axios.get("/tableJMX", { params: { 'id': this.id } }).then(
+                        (res) => {
+                            if (res.data.code == -1) {
+                                return;
+                            }
+                            let d = res.data.data;
+                            if (new Date(this.params.stop).getTime() <= new Date(d.ts).getTime()) {
+                                    clearInterval(this.timer);
+                                    return;
+                            }
+                            // console.log(d)
+                            this.updateTime = d.ts;
+                            this.id = d.id + 1;
+                            this.ds = d.table.ds;
+                            this.ns = d.table.ns;
+
+                            this.countChart.series[0].setData([this.ds[this.sId].regionCount])
+                            this.countChart.series[1].setData([this.ds[this.sId].storeCount])
+                            this.countChart.series[2].setData([this.ds[this.sId].storeFileCount])
+                            this.countChart.series[3].setData([this.ds[this.sId].numReferenceFiles])
+
+                            this.sizePieChart.series[0].setData([this.ds[this.sId].storeFileSize, this.ds[this.sId].memStoreSize,
+                            this.ds[this.sId].totalRequestCount - this.ds[this.sId].storeFileSize - this.ds[this.sId].memStoreSize])
+
+                            this.fileAgeChart.series[0].setData([this.ds[this.sId].maxStoreFileAge])
+                            this.fileAgeChart.series[1].setData([this.ds[this.sId].minStoreFileAge])
+                            this.fileAgeChart.series[2].setData([this.ds[this.sId].avgStoreFileAge])
+
+                            this.requestPieChart.series[0].setData([this.ds[this.sId].readRequestCount, this.ds[this.sId].writeRequestCount,
+                            this.ds[this.sId].totalRequestCount - this.ds[this.sId].readRequestCount - this.ds[this.sId].writeRequestCount])
+
+                            this.bytesChart.series[0].setData([this.ds[this.sId].compactedInputBytes, this.ds[this.sId].flushedMemstoreBytes, this.ds[this.sId].majorCompactedInputBytes])
+                            this.bytesChart.series[1].setData([this.ds[this.sId].compactedOutputBytes, this.ds[this.sId].flushedOutputBytes, this.ds[this.sId].majorCompactedOutputBytes])
+
+                            let ts = (new Date(d.ts)).getTime()
+                            this.request2.chart.series[0].addPoint([ts, this.ds[this.sId].totalRequestCount], false, false);
+                            this.request2.chart.series[1].addPoint([ts, this.ds[this.sId].readRequestCount], false, false);
+                            this.request2.chart.series[2].addPoint([ts, this.ds[this.sId].writeRequestCount], false, false);
+                            this.request2.chart.redraw();
+
+
+                        })
+                        .catch(function (error) { console.log(error); });
+                },
+                stop() {
+                    clearInterval(this.timer);
+                },
+
+                formatTimeT(date) {
+                    const year = date.getFullYear()
+                    const month = date.getMonth() + 1
+                    const day = date.getDate()
+                    const hour = date.getHours()
+                    const minute = date.getMinutes()
+                    const second = date.getSeconds()
+
+                    return [year, month, day].map(this.formatNumber).join('-') + 'T' + [hour, minute, second].map(this.formatNumber).join(':')
+                },
+                formatNumber(n) {
+                    n = n.toString()
+                    return n[1] ? n : '0' + n
+                }
+            },
+            filters: {
+                formatSize(d) {
+                    if (d == undefined) { return '' }
+                    if (d >= 1073741824) { return (d / 1073741824).toFixed(2) + "GB"; }
+                    else if (d >= 1048576) { return (d / 1048576).toFixed(2) + "MB"; }
+                    else if (d >= 1024) { return (d / 1024).toFixed(2) + "KB"; }
+                    else { return d + "B"; }
+                },
+                formatNum(d) {
+                    if (d == undefined) { return '' }
+                    if (d >= 1000) { return (d / 1000).toFixed(2) + "k" }
+                    else { return d }
+                },
+                fix2(d) {
+                    if (d == undefined) { return '' }
+                    return Number(d).toFixed(2);
+                }
+            }
+        })
+    </script>
+
+</body>
+
+</html>
