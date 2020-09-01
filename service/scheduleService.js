@@ -18,7 +18,7 @@ const scheduleCronstyle = ()=>{
       }); 
   }
 
-scheduleCronstyle()
+//scheduleCronstyle()
 
 
 //扫描jmx
